@@ -1,158 +1,112 @@
 #![no_std]
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env, Symbol, Vec, vec, log};
 
-use soroban_sdk::{
-    contract, contractimpl, contracttype,
-    Env, Symbol, Vec, Address
-};
-
-#[contract]
-pub struct VotingContract;
-
-#[contracttype]
 #[derive(Clone)]
-pub struct Poll {
-    pub question: Symbol,
-    pub options: Vec<Symbol>,
-    pub deadline: u64,
-}
-
 #[contracttype]
 pub enum DataKey {
-    Poll(u64),
-    Vote(u64, Address),        // (poll_id, voter)
-    VoteCount(u64, Symbol),   // (poll_id, option)
-    PollCount,
+    Club(Symbol),    // Stores the Club metadata
+    Balance(Symbol), // Stores the current total saved
 }
 
+#[derive(Clone)]
+#[contracttype]
+pub struct Club {
+    pub creator: Address,
+    pub goal: i128,
+    pub token: Address,
+    pub description: Symbol,
+    pub completed: bool,
+}
+
+#[contract]
+pub struct MicroSavingContract;
+
 #[contractimpl]
-impl VotingContract {
+impl MicroSavingContract {
 
-    // 🗳️ Create a new poll (permissionless)
-    pub fn create_poll(
-        env: Env,
-        question: Symbol,
-        options: Vec<Symbol>,
-        deadline: u64,
-    ) -> u64 {
+    /// Create a new savings club. 
+    /// Permissionless: Anyone can call this to start a pool.
+    pub fn create_club(
+        env: Env, 
+        club_id: Symbol, 
+        creator: Address, 
+        goal: i128, 
+        token_addr: Address,
+        desc: Symbol
+    ) {
+        let key = DataKey::Club(club_id.clone());
+        
+        if env.storage().instance().has(&key) {
+            panic!("Club ID already exists");
+        }
 
-        // Get current poll count
-        let mut poll_count: u64 = env
-            .storage()
-            .instance()
-            .get(&DataKey::PollCount)
-            .unwrap_or(0);
-
-        poll_count += 1;
-
-        let poll = Poll {
-            question,
-            options,
-            deadline,
+        let new_club = Club {
+            creator,
+            goal,
+            token: token_addr,
+            description: desc,
+            completed: false,
         };
 
-        // Store poll
-        env.storage()
-            .instance()
-            .set(&DataKey::Poll(poll_count), &poll);
-
-        // Update poll count
-        env.storage()
-            .instance()
-            .set(&DataKey::PollCount, &poll_count);
-
-        poll_count
+        env.storage().instance().set(&key, &new_club);
+        env.storage().instance().set(&DataKey::Balance(club_id.clone()), &0i128);
+        
+        // Extend TTL (Time To Live) so the data doesn't expire quickly
+        // This is crucial for permissionless dapps on Stellar
+        env.storage().instance().extend_ttl(1000, 5000);
+        
+        log!(&env, "Club Created", club_id);
     }
 
-    // 🗳️ Vote on a poll (permissionless)
-    pub fn vote(
-        env: Env,
-        poll_id: u64,
-        voter: Address,
-        option: Symbol,
-    ) {
+    pub fn deposit(env: Env, user: Address, amount: i128, club_id: Symbol) {
+        user.require_auth();
 
-        // Require authentication
-        voter.require_auth();
-
-        // Fetch poll
-        let poll: Poll = env
-            .storage()
-            .instance()
-            .get(&DataKey::Poll(poll_id))
-            .expect("Poll does not exist");
-
-        // Check deadline
-        let current_time = env.ledger().timestamp();
-        if current_time > poll.deadline {
-            panic!("Voting has ended");
+        let club_key = DataKey::Club(club_id.clone());
+        let club: Club = env.storage().instance().get(&club_key).expect("Club not found");
+        
+        if club.completed {
+            panic!("Club goal already reached");
         }
 
-        // Prevent double voting
-        let vote_key = DataKey::Vote(poll_id, voter.clone());
-        if env.storage().instance().has(&vote_key) {
-            panic!("Already voted");
-        }
+        let balance_key = DataKey::Balance(club_id.clone());
+        let current_balance: i128 = env.storage().instance().get(&balance_key).unwrap_or(0);
 
-        // Validate option exists
-        let mut valid = false;
-        for opt in poll.options.iter() {
-            if opt == option {
-                valid = true;
-                break;
-            }
-        }
+        // Standard Soroban Token Client
+        let client = token::Client::new(&env, &club.token);
+        client.transfer(&user, &env.current_contract_address(), &amount);
 
-        if !valid {
-            panic!("Invalid option");
-        }
-
-        // Store vote
-        env.storage()
-            .instance()
-            .set(&vote_key, &option);
-
-        // Increment vote count
-        let count_key = DataKey::VoteCount(poll_id, option.clone());
-
-        let mut count: u32 = env
-            .storage()
-            .instance()
-            .get(&count_key)
-            .unwrap_or(0);
-
-        count += 1;
-
-        env.storage()
-            .instance()
-            .set(&count_key, &count);
+        env.storage().instance().set(&balance_key, &(current_balance + amount));
+        env.storage().instance().extend_ttl(1000, 5000);
     }
 
-    // 📊 Get vote count for an option
-    pub fn get_vote_count(
-        env: Env,
-        poll_id: u64,
-        option: Symbol,
-    ) -> u32 {
+    pub fn withdraw(env: Env, club_id: Symbol) {
+        let club_key = DataKey::Club(club_id.clone());
+        let mut club: Club = env.storage().instance().get(&club_key).expect("Club not found");
+        
+        let balance_key = DataKey::Balance(club_id.clone());
+        let current_balance: i128 = env.storage().instance().get(&balance_key).unwrap_or(0);
 
-        env.storage()
-            .instance()
-            .get(&DataKey::VoteCount(poll_id, option))
-            .unwrap_or(0)
+        if current_balance < club.goal {
+            panic!("Goal not yet reached");
+        }
+
+        if club.completed {
+            panic!("Funds already withdrawn");
+        }
+
+        club.completed = true;
+        env.storage().instance().set(&club_key, &club);
+
+        let client = token::Client::new(&env, &club.token);
+        client.transfer(&env.current_contract_address(), &club.creator, &current_balance);
     }
 
-    // 📄 Get poll details
-    pub fn get_poll(env: Env, poll_id: u64) -> Poll {
-        env.storage()
-            .instance()
-            .get(&DataKey::Poll(poll_id))
-            .expect("Poll not found")
-    }
-
-    // 🔢 Get total number of polls
-    pub fn get_poll_count(env: Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&DataKey::PollCount)
-            .unwrap_or(0)
+    /// Fixed return type: Soroban prefers Vec or custom Structs over Rust tuples for public functions
+    pub fn get_stats(env: Env, club_id: Symbol) -> Vec<i128> {
+        let club_key = DataKey::Club(club_id.clone());
+        let club: Club = env.storage().instance().get(&club_key).expect("Club not found");
+        let balance: i128 = env.storage().instance().get(&DataKey::Balance(club_id)).unwrap_or(0);
+        
+        vec![&env, balance, club.goal]
     }
 }
