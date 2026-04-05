@@ -1,182 +1,104 @@
-# demo-project
-# 🗳️ Permissionless Voting DApp on Stellar
+🏦 Micro-Saving Club
+The first truly permissionless micro-savings protocol on Stellar.
 
-A fully decentralized and permissionless voting application built on the Stellar blockchain using Soroban smart contracts.
+Micro-Saving Club is a decentralized application (dApp) built on the Stellar Network using Soroban smart contracts. It allows any user to create a savings goal, invite others to contribute, and lock funds in a secure, code-governed escrow until a specific financial milestone is reached.
 
----
+🚀 Core Philosophy: Permissionless by Design
+Unlike traditional savings groups or centralized apps, this dApp has no admins.
 
-## 🚀 Overview
+Anyone can create a club: No "approved" list of creators.
 
-This project demonstrates how to build a **trustless voting system** where:
+Anyone can contribute: No "invite-only" gatekeeping at the contract level.
 
-* Anyone can create a poll
-* Anyone can vote
-* No admin or central authority exists
-* All data is transparent and immutable
+Immutable Rules: Once a club is created with a goal and a target asset, the rules cannot be changed.
 
-Built using **Stellar Soroban smart contracts**, this DApp ensures fairness and openness by design.
+Math-Based Escrow: Funds are released to the creator only when the mathematical goal is met.
 
----
+🛠 Features
+Multi-Asset Support: Create savings circles for USDC, XLM, or any Stellar-wrapped asset.
 
-## 🔥 Key Features
+Automated Escrow: Logic-gated withdrawals ensure funds are only moved when the goal is reached.
 
-* 🆓 **Permissionless Poll Creation**
-  Any user can create a new voting poll without approval.
+State Persistence: Built-in TTL (Time To Live) management to ensure your club data stays active on the Stellar ledger.
 
-* 🗳️ **Open Voting System**
-  Anyone can vote in any poll.
+Zero Fees: The protocol takes 0%—only network gas fees apply.
 
-* 🔁 **One Vote Per User Per Poll**
-  Prevents duplicate voting while remaining decentralized.
-
-* 🔍 **Transparent Results**
-  Votes are stored on-chain and can be verified by anyone.
-
-* ⚡ **Fast & Low Cost**
-  Powered by Stellar for quick and cheap transactions.
-
----
-
-## 🧠 Smart Contract Logic
-
-### Core Functions
-
-* `create_poll(title)`
-  Creates a new poll with a unique ID.
-
-* `vote(poll_id, option)`
-  Cast a vote for a given option.
-
-* `get_results(poll_id)`
-  Returns vote counts for each option.
-
-* `has_voted(poll_id, user)`
-  Checks if a user has already voted.
-
----
-
-## 🔐 Permissionless Design
-
-This DApp strictly follows a **permissionless architecture**:
-
-* ❌ No admin controls
-* ❌ No candidate approval system
-* ❌ No whitelist/blacklist
-
-✅ Anyone can:
-
-* Create polls
-* Participate in voting
-* View results
-
----
-
-## 🛠️ Tech Stack
-
-* **Blockchain:** Stellar (Soroban)
-* **Smart Contracts:** Rust (Soroban SDK)
-* **Frontend:** React.js
-* **Wallet:** Freighter Wallet
-
----
-
-## 📦 Project Structure
-
-```
+🏗 Project Structure
+Plaintext
+.
 ├── contracts/
-│   └── voting_contract/
-│       └── src/
-│           └── lib.rs
-├── frontend/
-│   ├── src/
-│   └── components/
-├── README.md
-```
+│   └── micro_saving/
+│       ├── src/
+│       │   └── lib.rs       # The Soroban Smart Contract logic
+│       └── Cargo.toml       # Rust dependencies
+├── public/                  # Frontend assets (Logo, Favicon)
+├── src/
+│   ├── components/          # React components (Navbar, Hero)
+│   └── lib/                 # Stellar/Freighter wallet integration
+└── README.md
+🔧 Getting Started
+1. Smart Contract (Soroban)
+Prerequisites: Rust, Stellar CLI.
 
----
+Bash
+# Build the contract
+stellar contract build
 
-## ⚙️ Installation & Setup
+# Deploy to Testnet
+stellar contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/micro_saving.wasm \
+  --source-account my-account \
+  --network testnet
+2. Frontend Integration
+The UI is built with React and Tailwind CSS.
 
-### 1. Clone Repository
-
-```bash
-git clone https://github.com/your-username/stellar-voting-dapp.git
-cd stellar-voting-dapp
-```
-
----
-
-### 2. Install Dependencies
-
-#### Smart Contract (Rust)
-
-```bash
-cd contracts/voting_contract
-cargo build
-```
-
----
-
-### 3. Deploy Contract (Testnet)
-
-Make sure you have installed:
-
-* Soroban CLI
-* Stellar CLI
-
-```bash
-soroban contract deploy \
---wasm target/wasm32-unknown-unknown/release/voting_contract.wasm \
---source your-account
-```
-
----
-
-### 4. Run Frontend
-
-```bash
-cd frontend
+Bash
+# Install dependencies
 npm install
-npm start
-```
 
----
+# Run the development server
+npm run dev
+Configuration:
+Update your .env file with the deployed Contract ID:
 
-## 🌐 Usage
+Code snippet
+NEXT_PUBLIC_CONTRACT_ID="C..."
+NEXT_PUBLIC_NETWORK="testnet"
+📝 Smart Contract API
+create_club
+Initializes a new savings pool.
 
-1. Connect your wallet
-2. Create a new poll
-3. Share poll ID
-4. Users vote
-5. View results instantly
+club_id: A unique Symbol name for the club.
 
----
+creator: The Address that will receive the funds once the goal is met.
 
-## 🎨 UI Branding
+goal: The total i128 amount required to unlock the escrow.
 
-* **App Name:** OpenVote
+token_addr: The contract address of the Stellar Asset (e.g., USDC).
 
-* **Hero Text:**
-  *"Vote Freely. No Permission. No Control."*
+deposit
+Permissionless function to add funds.
 
-* **Navbar:**
+user: The address of the depositor.
 
-  * Create Poll
-  * Vote
-  * Results
+amount: Amount to save.
 
----
+club_id: The ID of the club to support.
 
-## 💡 Future Improvements
+withdraw
+Executes the transfer of all pooled funds to the creator.
 
-* 📊 Real-time analytics dashboard
-* 🧾 NFT-based voting proof
-* 🔐 Optional private voting (ZK proofs)
-* ⏳ Time-bound polls
-* 🌍 Multi-language support
+Requirement: current_balance >= goal.
 
+🎨 UI Customization
+To match the Micro-Saving Club brand, the following changes are applied:
 
-source code : https://stellar.expert/explorer/testnet/contract/CCUIB74RE5D7ZN5GL3OVQEGW7JYFYOEJAT5N2N2WD5TCVZIQMU5QRLCF
-ID : CCUIB74RE5D7ZN5GL3OVQEGW7JYFYOEJAT5N2N2WD5TCVZIQMU5QRLCF
+Hero Text: "Permissionless Micro-Savings for Everyone. Start a savings circle, reach your goals, no managers required."
 
-<img width="1901" height="1029" alt="Screenshot 2026-04-04 095203" src="https://github.com/user-attachments/assets/78cb9c5e-98af-4237-b04d-d8625f69b1c5" />
+Navbar: Features a 🏦 SaveTogether logo and a real-time "Total Value Locked" tracker.
+
+⚖️ License
+This project is open-source and permissionless. Use it to build a more inclusive financial future.
+id : CAXSAUR7KM27MJ7GMBMSM7X3XK57KW4GQFL6WQKEMJNUG4LYZUABAGF6
+url :https://stellar.expert/explorer/testnet/contract/CAXSAUR7KM27MJ7GMBMSM7X3XK57KW4GQFL6WQKEMJNUG4LYZUABAGF6
+<img width="1904" height="1028" alt="Screenshot 2026-04-05 161056" src="https://github.com/user-attachments/assets/5565ba7b-192a-4296-9d69-db81917ba3c7" />
